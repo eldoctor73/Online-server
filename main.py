@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, WebSocket
 import json
 from database import buy_item, add_points, testmyself
