@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket
 import json
-from D_B import buy_item, add_points, testmyself
+from Data_Base import buy_item, add_points, testmyself
 
 app = FastAPI()
 
