@@ -4,9 +4,8 @@ FROM python:3.11-slim
 # اضبط فولدر العمل
 WORKDIR /app
 
-# انسخ ملفات المشروع
-COPY requirements.txt .
-COPY main.py .
+# انسخ ملفات المشروع كلها
+COPY . .
 
 # ثبّت المكتبات
 RUN pip install --no-cache-dir -r requirements.txt
