@@ -42,13 +42,7 @@ async def websocket_endpoint(websocket: WebSocket):
         player_id = data.get("player_id")
         print(f"[WebSocket] Action: {action}, Player: {player_id}")
 
-        response = {
-            "status": "error",
-            "action": action,
-            "player_id": player_id,
-            "data": {},
-            "error": "unknown action"
-        }
+
 
         try:
             if action == "BuyItem":
@@ -67,13 +61,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         except Exception as e:
             # لو حصل أي استثناء داخلي
-            response = {
-                "status": "error",
-                "action": action,
-                "player_id": player_id,
-                "data": {},
-                "error": str(e)
-            }
+            response = {"Error": str(e)}
 
         # Send response
         await websocket.send_text(json.dumps(response))

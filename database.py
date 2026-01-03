@@ -34,7 +34,7 @@ async def add_points(action, player_id: str, points_to_add: int):
                 player_id = int(player_id)
                 row = await conn.fetchrow('SELECT data_player FROM users WHERE id_players=$1', player_id)
                 if not row:
-                    response= {"result": "player not found"}
+                    response= {"Error": "player not found"}
                     return response
 
                 data_player = json.loads(row["data_player"])
@@ -47,7 +47,8 @@ async def add_points(action, player_id: str, points_to_add: int):
                     json.dumps(data_player), player_id
                 )
 
-                response = {"new_points": data_player["points"]}
+                response = {"new_points": data_player["points"],
+                            "Action":action}
                 return response
 
             except Exception as e:
@@ -60,19 +61,12 @@ async def add_points(action, player_id: str, points_to_add: int):
 async def buy_item(action, player_id: str, item_price: int):
     async with pool.acquire() as conn:
         async with conn.transaction():
-            response = {
-                "status": "success",
-                "action": action,
-                "player_id": player_id,
-                "data": {},
-                "error": None
-            }
             try:
                 player_id = int(player_id)
                 row = await conn.fetchrow('SELECT data_player FROM users WHERE id_players=$1', player_id)
                 if not row:
-                    response["status"] = "error"
-                    response["error"] = "player not found"
+
+                    response = {"Error": "player not found"}
                     return response
 
                 data_player = json.loads(row["data_player"])
@@ -80,14 +74,8 @@ async def buy_item(action, player_id: str, item_price: int):
                 items_count = data_player.get("items_count", 0)
 
                 if points < item_price:
-                    response["status"] = "error"
-                    response["error"] = "Not enough points"
-                    response["data"] = {
-                        "new_points": points,
-                        "items_count": items_count,
-                        "anim_no_money": "play",
-                        "3ard_sha7n": "open"
-                    }
+                    response ={"anim_no_money": "play",
+                        "3ard_sha7n": "open"}
                     return response
 
                 # العملية الأساسية
@@ -99,15 +87,14 @@ async def buy_item(action, player_id: str, item_price: int):
                     json.dumps(data_player), player_id
                 )
 
-                response["data"] = {
+                response = {
                     "new_points": data_player["points"],
-                    "items_count": data_player["items_count"]
-                }
+                    "items_count": data_player["items_count"],
+                "Action":action}
                 return response
 
             except Exception as e:
-                response["status"] = "error"
-                response["error"] = str(e)
+                response["error"] ={"Error":str(e)}
                 return response
 
 # ======================
@@ -115,12 +102,10 @@ async def buy_item(action, player_id: str, item_price: int):
 # ======================
 async def testmyself(action, player_id):
     return {
-        "status": "success",
-        "action": action,
-        "player_id": player_id,
-        "data": {"msg": f"Hello {player_id}"},
-        "error": None
+        "msg": f"Hello {player_id}"
     }
+
+
 
 
 
