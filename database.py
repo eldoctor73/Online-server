@@ -30,19 +30,11 @@ async def init_db():
 async def add_points(action, player_id: str, points_to_add: int):
     async with pool.acquire() as conn:
         async with conn.transaction():
-            response = {
-                "status": "success",
-                "action": action,
-                "player_id": player_id,
-                "data": {},
-                "error": None
-            }
             try:
                 player_id = int(player_id)
                 row = await conn.fetchrow('SELECT data_player FROM users WHERE id_players=$1', player_id)
                 if not row:
-                    response["status"] = "error"
-                    response["error"] = "player not found"
+                    response= {"result": "player not found"}
                     return response
 
                 data_player = json.loads(row["data_player"])
@@ -55,12 +47,11 @@ async def add_points(action, player_id: str, points_to_add: int):
                     json.dumps(data_player), player_id
                 )
 
-                response["data"] = {"new_points": data_player["points"]}
+                response = {"new_points": data_player["points"]}
                 return response
 
             except Exception as e:
-                response["status"] = "error"
-                response["error"] = str(e)
+                response = {"Error":str(e)}
                 return response
 
 # ======================
