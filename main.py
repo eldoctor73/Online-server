@@ -2,7 +2,7 @@ import os
 import json
 from fastapi import FastAPI, WebSocket
 from database import buy_item, add_points, testmyself
-
+from start import start
 app = FastAPI()
 
 @app.websocket("/ws")
@@ -35,6 +35,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif action == "t3arof":
                 response = await testmyself(action, player_id)
+
+            elif action == "start"    :
+                response = await start(action, player_id)
 
             else:
                 response = {"status": "error", "reason": "unknown action"}
