@@ -1,9 +1,9 @@
-from database import get_pool
+from database_manager import get_pool
 import json
 
 
 async def start(action, player_id: str):
-    pool = pool()
+    pool = get_pool()
     async with pool.acquire() as conn:
             try:
                 player_id = int(player_id)
@@ -17,7 +17,7 @@ async def start(action, player_id: str):
                     data_player = json.loads(data_player)
 
                 response = {
-
+                        "Action": action,
                         "Name": data_player.get("Name"),
                         "Type": data_player.get("Type"),
                         "HP": data_player.get("HP"),

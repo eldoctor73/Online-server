@@ -1,85 +1,39 @@
 import os
-import json
-from fastapi import FastAPI, WebSocket
-from database import buy_item, add_points, testmyself, init_db
-from start import start
+import uvicorn
+from fastapi import FastAPI
+from database_manager import init_db, add_points
+import player_logic
+import store_logic
 
 app = FastAPI()
 
-# ==========================
-# Init DB Pool on startup
-# ==========================
 @app.on_event("startup")
 async def startup_event():
-    await init_db()
-    print("Database pool initialized")
+    # لو init_db فيها مشكلة، السيرفر كله مش هيقوم وهيدي 502
+    try:
+        await init_db()
+        print("🚀 Database connected!")
+    except Exception as e:
+        print(f"❌ Database failed: {e}")
 
-# ==========================
-# WebSocket endpoint
-# ==========================
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    print("Client connected")
-
-    async for message in websocket.iter_text():
-        print(f"[WebSocket] Received message: {message}")
-
-        # Parse JSON
-        try:
-            data = json.loads(message)
-        except json.JSONDecodeError:
-            await websocket.send_text(json.dumps({
-                "status": "error",
-                "action": None,
-                "player_id": None,
-                "data": {},
-                "error": "invalid json"
-            }))
-            continue
-
-        action = data.get("Action")
-        player_id = data.get("player_id")
-        print(f"[WebSocket] Action: {action}, Player: {player_id}")
+@app.post("/player_data")
+async def get_player_info(data: dict):
+    # اتأكد إنك باعت player_id من انريل جوه الـ JSON
+    p_id = data.get("player_id")
+    return await player_logic.get_player_data(p_id)
 
 
+@app.post("/addpoint")
+async def addpoints(data: dict):
+    # اتأكد إنك باعت player_id من انريل جوه الـ JSON
+    p_id = data.get("player_id")
+    return await add_points(p_id)
 
-        try:
-            if action == "BuyItem":
-                item_price = int(data.get("item_price", 0))
-                response = await buy_item(action, player_id, item_price)
+@app.get("/status")
+async def status():
+    return {"status": "ok"}
 
-            elif action == "Buypoint":
-                points = int(data.get("points", 0))
-                response = await add_points(action, player_id, points)
-
-            elif action == "start":
-                response = await start(action, player_id)
-
-            elif action == "t3arof":
-                response = await testmyself(action, player_id)
-
-        except Exception as e:
-            # لو حصل أي استثناء داخلي
-            response = {"Error": str(e)}
-
-        # Send response
-        await websocket.send_text(json.dumps(response))
-
-
-# ==========================
-# تشغيل السيرفر
-# ==========================
 if __name__ == "__main__":
-    import uvicorn
-    import asyncio
-
+    # التعديل هنا: شلنا "main:app" وخليناها app علطول
     port = int(os.environ.get("PORT", 8080))
-    print(f"Starting server on 0.0.0.0:{port}")
-
-    # ⚡ جهّز الـ pool قبل أي request
-    asyncio.run(init_db())
-    print("Database pool fully initialized before server starts")
-
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", reload=False)
-
+    uvicorn.run(app, host="0.0.0.0", port=port)

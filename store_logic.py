@@ -1,85 +1,43 @@
-import os
 import json
-from fastapi import FastAPI, WebSocket
-from database_manager import buy_item, add_points, testmyself, init_db#, start
-from start import start
-
-app = FastAPI()
-
-# ==========================
-# Init DB Pool on startup
-# ==========================
-@app.on_event("startup")
-async def startup_event():
-    await init_db()
-    print("Database pool initialized")
-
-# ==========================
-# WebSocket endpoint
-# ==========================
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    print("Client connected")
-
-    async for message in websocket.iter_text():
-        print(f"[WebSocket] Received message: {message}")
-
-        # Parse JSON
-        try:
-            data = json.loads(message)
-        except json.JSONDecodeError:
-            await websocket.send_text(json.dumps({
-                "status": "error",
-                "action": None,
-                "player_id": None,
-                "data": {},
-                "error": "invalid json"
-            }))
-            continue
-
-        action = data.get("Action")
-        player_id = data.get("player_id")
-        print(f"[WebSocket] Action: {action}, Player: {player_id}")
+from database_manager import get_pool
 
 
+async def secure_buy(player_id: str, item_id: int):  # هنبعت الـ ID بتاع الايتم
+    pool = get_pool()
 
-        try:
-            if action == "BuyItem":
-                item_price = int(data.get("item_price", 0))
-                response = await buy_item(action, player_id, item_price)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # 1. نجيب بيانات الايتم من جدول الـ items
+            item_row = await conn.fetchrow('SELECT item_data FROM items WHERE id=$1', item_id)
+            if not item_row:
+                return {"Status": "Error", "Message": "Item not found in store"}
 
-            elif action == "Buypoint":
-                points = int(data.get("points", 0))
-                response = await add_points(action, player_id, points)
+            item_info = json.loads(item_row['item_data'])
+            item_price = item_info.get('price', 0)
+            item_name = item_info.get('name', 'Unknown')
 
-            elif action == "start":
-                response = await start(action, player_id)
+            # 2. نجيب بيانات اللاعب
+            player_row = await conn.fetchrow('SELECT data_player FROM users WHERE id_players=$1 FOR UPDATE',
+                                             int(player_id))
+            if not player_row:
+                return {"Status": "Error", "Message": "Player not found"}
 
-            elif action == "t3arof":
-                response = await testmyself(action, player_id)
+            player_data = json.loads(player_row['data_player'])
+            current_points = player_data.get('points', 0)
 
-        except Exception as e:
-            # لو حصل أي استثناء داخلي
-            response = {"Error": str(e)}
+            # 3. التأكد من الرصيد
+            if current_points < item_price:
+                return {"Status": "Failed", "Message": "No enough points", "Needed": item_price}
 
-        # Send response
-        await websocket.send_text(json.dumps(response))
+            # 4. الخصم
+            player_data['points'] = current_points - item_price
 
+            # 5. حفظ التعديل في جدول الـ users
+            await conn.execute('UPDATE users SET data_player=$1 WHERE id_players=$2',
+                               json.dumps(player_data), int(player_id))
 
-# ==========================
-# تشغيل السيرفر
-# ==========================
-if __name__ == "__main__":
-    import uvicorn
-    import asyncio
-
-    port = int(os.environ.get("PORT", 8080))
-    print(f"Starting server on 0.0.0.0:{port}")
-
-    # ⚡ جهّز الـ pool قبل أي request
-    asyncio.run(init_db())
-    print("Database pool fully initialized before server starts")
-
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", reload=False)
-
+            return {
+                "Status": "Success",
+                "NewPoints": player_data['points'],
+                "BoughtItem": item_name
+            }
