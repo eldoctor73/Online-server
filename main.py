@@ -72,6 +72,14 @@ async def websocket_endpoint(websocket: WebSocket):
 # ==========================
 if __name__ == "__main__":
     import uvicorn
+    import asyncio
+
     port = int(os.environ.get("PORT", 8080))
     print(f"Starting server on 0.0.0.0:{port}")
+
+    # ⚡ جهّز الـ pool قبل أي request
+    asyncio.run(init_db())
+    print("Database pool fully initialized before server starts")
+
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", reload=False)
+
